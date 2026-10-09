@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>8-Bit Integer Overflow Visualizer</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f4f6f8;
+            color: #1f2933;
+        }
+
+        header {
+            background: #1f2933;
+            color: white;
+            padding: 30px 20px;
+            text-align: center;
+        }
+
+        header h1 {
+            margin: 0 0 8px 0;
+        }
+
+        header p {
+            margin: 0;
+            color: #d9e2ec;
+        }
+
+        main {
+            max-width: 900px;
+            margin: 30px auto;
+            padding: 0 20px 40px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 10px;
+            padding: 24px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+
+        h2 {
+            margin-top: 0;
+        }
+
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            align-items: center;
+        }
+
+        input[type="number"] {
+            width: 130px;
+            padding: 10px;
+            font-size: 16px;
+        }
+
+        input[type="range"] {
+            flex: 1;
+            min-width: 250px;
+        }
+
+        button {
+            padding: 10px 16px;
+            border: none;
+            border-radius: 6px;
+            background: #2563eb;
+            color: white;
+            font-size: 15px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #1d4ed8;
+        }
+
+        .bits {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 15px;
+        }
+
+        .bit {
+            width: 55px;
+            text-align: center;
+            padding: 12px 5px;
+            background: #e5e7eb;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 22px;
+        }
+
+        .bit-label {
+            display: block;
+            font-size: 10px;
+            color: #6b7280;
+            margin-top: 5px;
+        }
+
+        .results {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 15px;
+        }
+
+        .result-box {
+            background: #f8fafc;
+            padding: 18px;
+            border-radius: 8px;
+            border: 1px solid #d9e2ec;
+        }
+
+        .result-box strong {
+            display: block;
+            font-size: 14px;
+            color: #52606d;
+            margin-bottom: 6px;
+        }
+
+        .result-value {
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        .warning {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            background: #fff7ed;
+            border: 1px solid #fdba74;
+        }
+
+        .safe {
+            background: #f0fdf4;
+            border-color: #86efac;
+        }
+
+        .example-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 15px;
+        }
+
+        code {
+            background: #eef2f7;
+            padding: 2px 5px;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+
+<body>
+
+<header>
+    <h1>8-Bit Integer Overflow Visualizer</h1>
+    <p>See what happens when a number does not fit inside an 8-bit integer.</p>
+</header>
+
+<main>
+
+    <div class="card">
+        <h2>Choose a Value</h2>
+
+        <p>
+            An 8-bit unsigned integer can store values from 0 to 255.
+            An 8-bit signed integer can store values from -128 to 127.
+        </p>
+
+        <div class="controls">
+            <label for="valueInput">Value:</label>
+
+            <input
+                type="number"
+                id="valueInput"
+                value="127"
+                min="-400"
+                max="500"
+            >
+
+            <input
+                type="range"
+                id="valueSlider"
+                min="-400"
+                max="500"
+                value="127"
+            >
+        </div>
+
+        <div class="example-buttons">
+            <button onclick="setValue(127)">Signed Max: 127</button>
+            <button onclick="setValue(128)">Overflow: 128</button>
+            <button onclick="setValue(255)">Unsigned Max: 255</button>
+            <button onclick="setValue(256)">Overflow: 256</button>
+            <button onclick="setValue(-1)">Value: -1</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>Stored 8-Bit Pattern</h2>
+
+        <div class="bits" id="bits"></div>
+    </div>
+
+    <div class="card">
+        <h2>How the Same Bits Are Interpreted</h2>
+
+        <div class="results">
+            <div class="result-box">
+                <strong>Original Input</strong>
+                <div class="result-value" id="originalValue"></div>
+            </div>
+
+            <div class="result-box">
+                <strong>Unsigned 8-Bit Value</strong>
+                <div class="result-value" id="unsignedValue"></div>
+            </div>
+
+            <div class="result-box">
+                <strong>Signed 8-Bit Value</strong>
+                <div class="result-value" id="signedValue"></div>
+            </div>
+
+            <div class="result-box">
+                <strong>Hexadecimal</strong>
+                <div class="result-value" id="hexValue"></div>
+            </div>
+        </div>
+
+        <div id="overflowMessage" class="warning"></div>
+    </div>
+
+    <div class="card">
+        <h2>Why Does This Happen?</h2>
+
+        <p>
+            An 8-bit value only has 256 possible bit patterns. If a calculation
+            produces a value outside the available range, only the lowest 8 bits
+            are kept.
+        </p>
+
+        <p>
+            For example, storing <code>256</code> in an 8-bit unsigned integer
+            produces <code>0</code>, because the value wraps around after 255.
+        </p>
+
+        <p>
+            Signed integers use two's-complement representation. The bit pattern
+            <code>10000000</code> represents 128 when interpreted as unsigned,
+            but -128 when interpreted as signed.
+        </p>
+    </div>
+
+</main>
+
+<script>
+    const input = document.getElementById("valueInput");
+    const slider = document.getElementById("valueSlider");
+
+    function setValue(value) {
+        input.value = value;
+        slider.value = value;
+        updateDisplay();
+    }
+
+    function toUnsigned8(value) {
+        return ((value % 256) + 256) % 256;
+    }
+
+    function toSigned8(value) {
+        const unsigned = toUnsigned8(value);
+
+        if (unsigned >= 128) {
+            return unsigned - 256;
+        }
+
+        return unsigned;
+    }
+
+    function updateDisplay() {
+        let value = parseInt(input.value);
+
+        if (isNaN(value)) {
+            value = 0;
+        }
+
+        slider.value = value;
+
+        const unsignedValue = toUnsigned8(value);
+        const signedValue = toSigned8(value);
+
+        document.getElementById("originalValue").textContent = value;
+        document.getElementById("unsignedValue").textContent = unsignedValue;
+        document.getElementById("signedValue").textContent = signedValue;
+
+        document.getElementById("hexValue").textContent =
+            "0x" + unsignedValue.toString(16).toUpperCase().padStart(2, "0");
+
+        const binary = unsignedValue.toString(2).padStart(8, "0");
+
+        const bitsContainer = document.getElementById("bits");
+        bitsContainer.innerHTML = "";
+
+        for (let i = 0; i < 8; i++) {
+            const bit = document.createElement("div");
+            bit.className = "bit";
+
+            bit.innerHTML =
+                binary[i] +
+                '<span class="bit-label">Bit ' + (7 - i) + "</span>";
+
+            bitsContainer.appendChild(bit);
+        }
+
+        const message = document.getElementById("overflowMessage");
+
+        const signedOverflow = value < -128 || value > 127;
+        const unsignedOverflow = value < 0 || value > 255;
+
+        if (signedOverflow || unsignedOverflow) {
+            message.className = "warning";
+
+            let text = "Overflow detected. ";
+
+            if (signedOverflow) {
+                text +=
+                    "The input does not fit in a signed 8-bit integer. ";
+            }
+
+            if (unsignedOverflow) {
+                text +=
+                    "The input does not fit in an unsigned 8-bit integer. ";
+            }
+
+            text +=
+                "Only the lowest 8 bits are stored, which causes the value to wrap around.";
+
+            message.textContent = text;
+        } else {
+            message.className = "warning safe";
+            message.textContent =
+                "This value fits inside the selected 8-bit range without unsigned overflow. Compare the signed and unsigned interpretations above.";
+        }
+    }
+
+    input.addEventListener("input", function () {
+        slider.value = input.value;
+        updateDisplay();
+    });
+
+    slider.addEventListener("input", function () {
+        input.value = slider.value;
+        updateDisplay();
+    });
+
+    updateDisplay();
+</script>
+
+</body>
+</html>
